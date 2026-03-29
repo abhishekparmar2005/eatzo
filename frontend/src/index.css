@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Poppins', sans-serif;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: #FAFAFA;
+  color: #1a1a1a;
+}
+
+:root {
+  --orange: #FF6B00;
+  --orange-light: #FF8C38;
+  --orange-dark: #E05A00;
+}
+
+.btn-primary {
+  @apply bg-[#FF6B00] text-white font-semibold py-3 px-6 rounded-xl hover:bg-[#E05A00] transition-all duration-200 active:scale-95;
+}
+
+.btn-outline {
+  @apply border-2 border-[#FF6B00] text-[#FF6B00] font-semibold py-3 px-6 rounded-xl hover:bg-[#FF6B00] hover:text-white transition-all duration-200;
+}
+
+.card {
+  @apply bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200;
+}
+
+.input {
+  @apply w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#FF6B00] focus:border-transparent transition-all;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #FF6B00; border-radius: 10px; }
