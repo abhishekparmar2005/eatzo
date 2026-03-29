@@ -3,7 +3,7 @@ const Cart = require('../models/Cart');
 
 const placeOrder = async (req, res) => {
   try {
-    const { deliveryAddress, paymentMethod } = req.body;
+    const { deliveryAddress, paymentMethod, customerPhone, customerNote } = req.body;
     const cart = await Cart.findOne({ userId: req.user._id });
     if (!cart || cart.items.length === 0)
       return res.status(400).json({ success: false, message: 'Cart is empty' });
@@ -17,6 +17,8 @@ const placeOrder = async (req, res) => {
       totalPrice,
       deliveryAddress: deliveryAddress || req.user.address,
       paymentMethod: paymentMethod || 'COD',
+      customerPhone: customerPhone || '',
+      customerNote: customerNote || '',
     });
 
     // Clear cart after order

@@ -209,9 +209,37 @@ const AdminDashboard = () => {
                       <span className="text-gray-400 text-sm mx-2">•</span>
                       <span className="text-sm text-gray-600">{order.restaurantName}</span>
                     </div>
-                    <span className="font-bold text-[#FF6B00]">₹{order.totalPrice}</span>
+                    <span className="font-bold text-[#FF6B00]">₹{order.totalPrice + 30}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mb-3">{order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}</p>
+                  <p className="text-xs text-gray-500 mb-2">{order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}</p>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 mb-3 text-xs space-y-1">
+                    {order.customerPhone && (
+                      <div className="flex items-center gap-2">
+                        <span>📞</span>
+                        <a href={`tel:+91${order.customerPhone}`} className="text-blue-600 font-semibold hover:underline">+91 {order.customerPhone}</a>
+                        <a href={`https://wa.me/91${order.customerPhone}`} target="_blank" rel="noreferrer"
+                          className="bg-green-500 text-white px-2 py-0.5 rounded-full text-xs hover:bg-green-600">WhatsApp</a>
+                      </div>
+                    )}
+                    {order.userId?.email && (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <span>✉️</span><span>{order.userId.email}</span>
+                      </div>
+                    )}
+                    {order.deliveryAddress && (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <span>📍</span><span>{order.deliveryAddress}</span>
+                      </div>
+                    )}
+                    {order.customerNote && (
+                      <div className="flex items-center gap-2 text-gray-500">
+                        <span>📝</span><span>{order.customerNote}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <span>💳</span><span>{order.paymentMethod}</span>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-3">
                     <select
                       value={order.status}

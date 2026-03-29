@@ -22,6 +22,8 @@ const orderSchema = new mongoose.Schema({
   },
   deliveryAddress: { type: String, default: '' },
   paymentMethod: { type: String, default: 'COD' },
+  customerPhone: { type: String, default: '' },
+  customerNote: { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

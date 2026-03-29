@@ -5,12 +5,18 @@ import { useAuth } from '../context/AuthContext';
 import API from '../utils/api';
 import toast from 'react-hot-toast';
 
+const UPI_ID = 'abhishekparmar@upi'; // 🔴 REPLACE with your real UPI ID
+
 const Cart = () => {
   const { cart, cartTotal, updateQuantity, clearCart, fetchCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [placing, setPlacing] = useState(false);
   const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [note, setNote] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [showUPI, setShowUPI] = useState(false);
 
   const items = cart?.items || [];
   const deliveryFee = 30;
@@ -18,9 +24,18 @@ const Cart = () => {
 
   const handlePlaceOrder = async () => {
     if (!address.trim()) { toast.error('Please enter a delivery address'); return; }
+    if (!phone.trim() || phone.length < 10) { toast.error('Please enter a valid 10-digit phone number'); return; }
+    if (paymentMethod === 'UPI') {
+      setShowUPI(true);
+      return;
+    }
+    await submitOrder();
+  };
+
+  const submitOrder = async () => {
     setPlacing(true);
     try {
-      await API.post('/orders', { deliveryAddress: address, paymentMethod: 'COD' });
+      await API.post('/orders', { deliveryAddress: address, paymentMethod, customerPhone: phone, customerNote: note });
       await fetchCart();
       toast.success('Order placed successfully! 🎉');
       navigate('/orders');
@@ -28,6 +43,7 @@ const Cart = () => {
       toast.error(err.response?.data?.message || 'Failed to place order');
     } finally {
       setPlacing(false);
+      setShowUPI(false);
     }
   };
 
@@ -44,6 +60,42 @@ const Cart = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
+      {/* UPI Payment Modal */}
+      {showUPI && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+            <div className="text-4xl mb-3">📲</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Pay via UPI</h3>
+            <p className="text-sm text-gray-500 mb-4">Send ₹{total} to the UPI ID below</p>
+
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 mb-4">
+              <p className="text-xs text-gray-500 mb-1">UPI ID</p>
+              <p className="text-lg font-bold text-[#FF6B00] tracking-wide">{UPI_ID}</p>
+            </div>
+
+            <p className="text-xs text-gray-400 mb-5">
+              After paying, click "I've Paid" to confirm your order.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowUPI(false)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitOrder}
+                disabled={placing}
+                className="flex-1 py-3 rounded-xl bg-[#FF6B00] text-white font-semibold text-sm hover:bg-[#E05A00] disabled:opacity-60"
+              >
+                {placing ? 'Placing...' : "I've Paid ✓"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link to="/" className="text-gray-500 hover:text-[#FF6B00]">
@@ -53,7 +105,6 @@ const Cart = () => {
           <button onClick={clearCart} className="ml-auto text-sm text-red-400 hover:text-red-600">Clear all</button>
         </div>
 
-        {/* Restaurant name */}
         {items[0]?.restaurantName && (
           <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 mb-4 flex items-center gap-2">
             <span className="text-[#FF6B00]">🏪</span>
@@ -91,6 +142,37 @@ const Cart = () => {
           ))}
         </div>
 
+        {/* Customer Contact */}
+        <div className="card p-4 mb-4">
+          <h3 className="font-semibold text-gray-900 mb-3">Your Contact Details</h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Phone Number *</label>
+              <div className="flex gap-2">
+                <span className="flex items-center px-3 bg-gray-100 border border-gray-200 rounded-xl text-gray-600 text-sm">+91</span>
+                <input
+                  className="input flex-1"
+                  type="tel"
+                  placeholder="10-digit mobile number"
+                  maxLength={10}
+                  value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">We'll call/WhatsApp you for order updates</p>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Delivery Instructions (optional)</label>
+              <input
+                className="input"
+                placeholder="e.g. Ring the bell, Leave at door..."
+                value={note}
+                onChange={e => setNote(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Delivery Address */}
         <div className="card p-4 mb-4">
           <h3 className="font-semibold text-gray-900 mb-3">Delivery Address</h3>
@@ -103,12 +185,44 @@ const Cart = () => {
           />
         </div>
 
+        {/* Payment Method */}
+        <div className="card p-4 mb-4">
+          <h3 className="font-semibold text-gray-900 mb-3">Payment Method</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setPaymentMethod('COD')}
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                paymentMethod === 'COD'
+                  ? 'border-[#FF6B00] bg-orange-50'
+                  : 'border-gray-200 hover:border-orange-200'
+              }`}
+            >
+              <span className="text-2xl">💵</span>
+              <span className="text-sm font-semibold text-gray-800">Cash on Delivery</span>
+              <span className="text-xs text-gray-500">Pay when delivered</span>
+            </button>
+            <button
+              onClick={() => setPaymentMethod('UPI')}
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                paymentMethod === 'UPI'
+                  ? 'border-[#FF6B00] bg-orange-50'
+                  : 'border-gray-200 hover:border-orange-200'
+              }`}
+            >
+              <span className="text-2xl">📲</span>
+              <span className="text-sm font-semibold text-gray-800">UPI Payment</span>
+              <span className="text-xs text-gray-500">GPay, PhonePe, Paytm</span>
+            </button>
+          </div>
+        </div>
+
         {/* Bill Summary */}
         <div className="card p-4 mb-6">
           <h3 className="font-semibold text-gray-900 mb-4">Bill Summary</h3>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-gray-600"><span>Item total</span><span>₹{cartTotal}</span></div>
             <div className="flex justify-between text-gray-600"><span>Delivery fee</span><span>₹{deliveryFee}</span></div>
+            <div className="flex justify-between text-gray-600"><span>Payment</span><span>{paymentMethod === 'COD' ? 'Cash on Delivery' : 'UPI'}</span></div>
             <div className="border-t pt-2 flex justify-between font-bold text-gray-900 text-base"><span>Total</span><span>₹{total}</span></div>
           </div>
         </div>
@@ -118,7 +232,12 @@ const Cart = () => {
           disabled={placing}
           className="w-full btn-primary text-base py-4 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {placing ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Placing Order...</> : `Place Order • ₹${total}`}
+          {placing
+            ? <><div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Placing Order...</>
+            : paymentMethod === 'UPI'
+              ? `Pay ₹${total} via UPI`
+              : `Place Order • ₹${total}`
+          }
         </button>
       </div>
     </div>
