@@ -77,10 +77,10 @@ const Auth = () => {
           </form>
 
           {isLogin && (
-            <p className="text-center text-xs text-gray-400 mt-4">
-              Demo admin: <span className="font-mono">admin@eatzo.com</span> / <span className="font-mono">admin123</span>
-            </p>
-          )}
+  <p className="text-center text-xs text-gray-400 mt-4">
+    Demo admin: <span className="font-mono">admin@eatzo.com</span> / <span className="font-mono">admin123</span>
+  </p>
+)}
         </div>
 
         <p className="text-center text-sm text-white/80 mt-5">
