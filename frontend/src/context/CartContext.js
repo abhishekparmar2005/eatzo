@@ -1,45 +1,59 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import API from '../utils/api';
-import { useAuth } from './AuthContext';
 
 const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState({ items: [] });
-  const { user } = useAuth();
+  const [cart, setCart]   = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchCart = useCallback(async () => {
-    if (!user) { setCart({ items: [] }); return; }
     try {
       const res = await API.get('/cart');
-      setCart(res.data.data || { items: [] });
-    } catch { setCart({ items: [] }); }
-  }, [user]);
+      setCart(res.data.data);
+    } catch {
+      setCart({ items: [] });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
-  // variant: e.g. "Half" or "Full" — pass empty string if no variants
-  // variantPrice: price of selected variant — pass undefined to use base price
-  const addToCart = async (menuItemId, quantity = 1, variant = '', variantPrice) => {
-    const res = await API.post('/cart/add', { menuItemId, quantity, variant, variantPrice });
+  // ── Derived values ───────────────────────────────────────────────────
+  const items     = cart?.items || [];
+  const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  const cartTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
+  // ── Add item (with optional variant + variantPrice) ──────────────────
+  // MenuCard calls: addToCart(menuItemId, 1, 'Half', 150)
+  const addToCart = async (menuItemId, quantity = 1, variant = '', variantPrice = null) => {
+    const res = await API.post('/cart/add', {
+      menuItemId,
+      quantity,
+      variant,
+      ...(variantPrice !== null ? { variantPrice } : {}),
+    });
     setCart(res.data.data);
   };
 
-  const updateQuantity = async (menuItemId, quantity) => {
-    const res = await API.put('/cart/update', { menuItemId, quantity });
+  // ── Update quantity (with variant so correct row is targeted) ────────
+  // Cart.js calls: updateQuantity(menuItemId, newQty, variant)
+  const updateQuantity = async (menuItemId, quantity, variant = '') => {
+    const res = await API.put('/cart/update', { menuItemId, quantity, variant });
     setCart(res.data.data);
   };
 
+  // ── Clear cart ───────────────────────────────────────────────────────
   const clearCart = async () => {
     await API.delete('/cart/clear');
     setCart({ items: [] });
   };
 
-  const cartCount = cart.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
-  const cartTotal = cart.items?.reduce((sum, i) => sum + i.price * i.quantity, 0) || 0;
-
   return (
-    <CartContext.Provider value={{ cart, cartCount, cartTotal, addToCart, updateQuantity, clearCart, fetchCart }}>
+    <CartContext.Provider
+      value={{ cart, cartCount, cartTotal, loading, fetchCart, addToCart, updateQuantity, clearCart }}
+    >
       {children}
     </CartContext.Provider>
   );

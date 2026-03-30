@@ -12,8 +12,6 @@ const getCart = async (req, res) => {
 
 const addItem = async (req, res) => {
   try {
-    // variant: name of the variant e.g. "Half" or "Full"
-    // variantPrice: price of that variant (overrides base price)
     const { menuItemId, quantity = 1, variant = '', variantPrice } = req.body;
 
     const menuItem = await MenuItem.findById(menuItemId);
@@ -28,13 +26,16 @@ const addItem = async (req, res) => {
     if (!cart) cart = new Cart({ userId: req.user._id, items: [] });
 
     // Clear cart if adding from a different restaurant
-    if (cart.items.length > 0 && cart.items[0].restaurantId?.toString() !== menuItem.restaurantId.toString()) {
+    if (
+      cart.items.length > 0 &&
+      cart.items[0].restaurantId?.toString() !== menuItem.restaurantId.toString()
+    ) {
       cart.items = [];
     }
 
-    // Match by both menuItem ID AND variant name
-    const existingIdx = cart.items.findIndex(i =>
-      i.menuItem.toString() === menuItemId && (i.variant || '') === variant
+    // Match by menuItem ID AND variant name (so Half and Full are separate rows)
+    const existingIdx = cart.items.findIndex(
+      i => i.menuItem.toString() === menuItemId && (i.variant || '') === variant,
     );
 
     if (existingIdx > -1) {
@@ -57,13 +58,19 @@ const addItem = async (req, res) => {
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };
 
+// FIXED: match by menuItemId + variant so Half/Full rows update independently
 const updateItem = async (req, res) => {
   try {
-    const { menuItemId, quantity } = req.body;
+    const { menuItemId, quantity, variant = '' } = req.body;
+
     const cart = await Cart.findOne({ userId: req.user._id });
     if (!cart) return res.status(404).json({ success: false, message: 'Cart not found' });
 
-    const idx = cart.items.findIndex(i => i.menuItem.toString() === menuItemId);
+    // Match on both menuItemId AND variant
+    const idx = cart.items.findIndex(
+      i => i.menuItem.toString() === menuItemId && (i.variant || '') === variant,
+    );
+
     if (idx === -1) return res.status(404).json({ success: false, message: 'Item not in cart' });
 
     if (quantity <= 0) {
@@ -71,6 +78,7 @@ const updateItem = async (req, res) => {
     } else {
       cart.items[idx].quantity = quantity;
     }
+
     await cart.save();
     res.json({ success: true, data: cart });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
