@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
 
 // ✅ Replace with your real UPI ID
-const YOUR_UPI_ID = 'abhishekparmar@upi';
+const YOUR_UPI_ID = 'thakurabhishek01@upi';
 const YOUR_NAME   = 'Eatzo';
 
 const Cart = () => {
