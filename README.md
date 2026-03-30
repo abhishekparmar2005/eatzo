@@ -1,6 +1,62 @@
-# 🍔 Eatzo — Local Food Delivery App
+# 🍔 Eatzo — Local Food Delivery Web App
 
-A full-stack food delivery web app built with React, Node.js, Express, and MongoDB.
+A full-stack food delivery platform inspired by Swiggy/Zomato, built for local restaurant ecosystems.
+Eatzo allows users to browse restaurants, order food, and track deliveries, while admins manage menus and orders.
+
+---
+
+## 🚀 Live Demo
+
+👉 https://eatzo-seven.vercel.app/
+
+---
+
+## ✨ Features
+
+### 👤 User Features
+
+* 🔐 JWT-based Authentication (Register/Login)
+* 🏪 Browse local restaurants
+* 🍽️ View menus with categories & filters
+* 🛒 Add to cart & manage quantities
+* 💳 Place orders (COD + UPI flow)
+* 📦 Track order status (real-time UI updates)
+* 📱 Mobile-friendly responsive design
+
+---
+
+### 🛠️ Admin Features
+
+* ➕ Add / delete restaurants
+* 🍔 Add menu items (with variants like Half/Full)
+* 📦 Manage all orders
+* 💰 Verify UPI payments manually
+* 🚨 Detect suspicious/fake payments
+* 📊 Dashboard with stats
+
+---
+
+## 🧠 Key Highlights
+
+* ⚡ Full-stack MERN architecture
+* 🔄 Real-world order lifecycle (Placed → Delivered)
+* 💳 Custom UPI payment flow with verification
+* 🧩 Modular and scalable code structure
+* 🎯 Built with production-level thinking (UX + logic)
+
+---
+
+## 🏗️ Tech Stack
+
+| Layer       | Technology             |
+| ----------- | ---------------------- |
+| Frontend    | React 18, Tailwind CSS |
+| Routing     | React Router v6        |
+| Backend     | Node.js, Express       |
+| Database    | MongoDB, Mongoose      |
+| Auth        | JWT, bcryptjs          |
+| API Client  | Axios                  |
+| UI Feedback | react-hot-toast        |
 
 ---
 
@@ -8,229 +64,182 @@ A full-stack food delivery web app built with React, Node.js, Express, and Mongo
 
 ```
 eatzo/
-├── backend/                  # Node.js + Express API
-│   ├── config/db.js          # MongoDB connection
-│   ├── controllers/          # Business logic
-│   │   ├── authController.js
-│   │   ├── cartController.js
-│   │   ├── menuController.js
-│   │   ├── orderController.js
-│   │   └── restaurantController.js
+├── backend/
+│   ├── config/
+│   ├── controllers/
 │   ├── middleware/
-│   │   └── authMiddleware.js # JWT protect + adminOnly
-│   ├── models/               # Mongoose schemas
-│   │   ├── User.js
-│   │   ├── Restaurant.js
-│   │   ├── MenuItem.js
-│   │   ├── Cart.js
-│   │   └── Order.js
-│   ├── routes/               # Express routers
-│   │   ├── authRoutes.js
-│   │   ├── cartRoutes.js
-│   │   ├── menuRoutes.js
-│   │   ├── orderRoutes.js
-│   │   └── restaurantRoutes.js
-│   ├── seed.js               # Sample data seeder
-│   ├── server.js             # App entry point
-│   ├── .env.example          # Environment variables template
-│   └── package.json
+│   ├── models/
+│   ├── routes/
+│   ├── seed.js
+│   └── server.js
 │
-└── frontend/                 # React app
-    ├── public/index.html
+└── frontend/
+    ├── public/
     └── src/
         ├── components/
-        │   ├── Navbar.js
-        │   ├── RestaurantCard.js
-        │   └── MenuCard.js
         ├── context/
-        │   ├── AuthContext.js
-        │   └── CartContext.js
         ├── pages/
-        │   ├── Home.js
-        │   ├── RestaurantDetail.js
-        │   ├── Cart.js
-        │   ├── Auth.js
-        │   ├── Orders.js
-        │   └── AdminDashboard.js
-        ├── utils/api.js
+        ├── utils/
         ├── App.js
-        ├── index.js
-        └── index.css
+        └── index.js
 ```
 
 ---
 
-## ⚡ Quick Start
+## ⚙️ Installation & Setup
 
-### Prerequisites
-- Node.js v16+
-- MongoDB (local or MongoDB Atlas)
-- npm
+### 📌 Prerequisites
 
----
-
-### 1. Clone / Extract the project
-
-```bash
-cd eatzo
-```
+* Node.js (v16+)
+* MongoDB (Local / Atlas)
+* npm
 
 ---
 
-### 2. Backend Setup
+### 🔧 Backend Setup
 
 ```bash
 cd backend
 npm install
-```
-
-Create your `.env` file:
-```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+Update `.env`:
+
 ```
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/eatzo
-JWT_SECRET=your_super_secret_key_here
+MONGO_URI=your_mongodb_uri
+JWT_SECRET=your_secret_key
 NODE_ENV=development
 ```
 
-> **Using MongoDB Atlas?** Replace `MONGO_URI` with your Atlas connection string.
+Seed database:
 
-Seed the database with sample restaurants and menu items:
 ```bash
 node seed.js
 ```
 
-Start the backend:
-```bash
-npm run dev      # Development (with nodemon)
-# or
-npm start        # Production
-```
+Run backend:
 
-Backend runs on **http://localhost:5000**
+```bash
+npm run dev
+```
 
 ---
 
-### 3. Frontend Setup
+### 💻 Frontend Setup
 
 ```bash
-cd ../frontend
+cd frontend
 npm install
 npm start
 ```
 
-Frontend runs on **http://localhost:3000**
+Frontend runs on:
+👉 http://localhost:3000
 
-> The frontend proxies API requests to `http://localhost:5000` automatically (configured in `package.json`).
-
----
-
-## 🔐 Demo Credentials (after seeding)
-
-| Role  | Email               | Password  |
-|-------|---------------------|-----------|
-| Admin | admin@eatzo.com     | admin123  |
-| User  | user@eatzo.com      | user123   |
+Backend runs on:
+👉 http://localhost:5000
 
 ---
 
-## 🌐 API Reference
+## 🔐 Demo Credentials
+
+| Role  | Email                                     | Password |
+| ----- | ----------------------------------------- | -------- |
+| User  | [user@eatzo.com](mailto:user@eatzo.com)   | user123  |
+
+---
+
+## 🌐 API Overview
 
 ### Auth
-| Method | Endpoint            | Access  | Description        |
-|--------|---------------------|---------|--------------------|
-| POST   | /api/auth/register  | Public  | Register new user  |
-| POST   | /api/auth/login     | Public  | Login + get token  |
-| GET    | /api/auth/me        | Private | Get current user   |
+
+* POST `/api/auth/register`
+* POST `/api/auth/login`
+* GET `/api/auth/me`
 
 ### Restaurants
-| Method | Endpoint              | Access  | Description            |
-|--------|-----------------------|---------|------------------------|
-| GET    | /api/restaurants      | Public  | Get all restaurants    |
-| GET    | /api/restaurants/:id  | Public  | Get one restaurant     |
-| POST   | /api/restaurants      | Admin   | Create restaurant      |
-| PUT    | /api/restaurants/:id  | Admin   | Update restaurant      |
-| DELETE | /api/restaurants/:id  | Admin   | Delete restaurant      |
+
+* GET `/api/restaurants`
+* POST `/api/restaurants` (Admin)
 
 ### Menu
-| Method | Endpoint                         | Access  | Description          |
-|--------|----------------------------------|---------|----------------------|
-| GET    | /api/menu/restaurant/:id         | Public  | Get menu for restaurant |
-| POST   | /api/menu                        | Admin   | Add menu item        |
-| PUT    | /api/menu/:id                    | Admin   | Update menu item     |
-| DELETE | /api/menu/:id                    | Admin   | Delete menu item     |
+
+* GET `/api/menu/restaurant/:id`
+* POST `/api/menu` (Admin)
 
 ### Cart
-| Method | Endpoint       | Access  | Description         |
-|--------|----------------|---------|---------------------|
-| GET    | /api/cart      | Private | Get user's cart     |
-| POST   | /api/cart/add  | Private | Add item to cart    |
-| PUT    | /api/cart/update | Private | Update quantity   |
-| DELETE | /api/cart/clear | Private | Clear cart         |
+
+* GET `/api/cart`
+* POST `/api/cart/add`
 
 ### Orders
-| Method | Endpoint               | Access  | Description             |
-|--------|------------------------|---------|-------------------------|
-| POST   | /api/orders            | Private | Place order             |
-| GET    | /api/orders/my         | Private | Get my orders           |
-| GET    | /api/orders/all        | Admin   | Get all orders          |
-| PUT    | /api/orders/:id/status | Admin   | Update order status     |
+
+* POST `/api/orders`
+* GET `/api/orders/my`
+* GET `/api/orders/all` (Admin)
 
 ---
 
-## 🎨 Features
+## 💳 Payment System
 
-### User Features
-- 🔐 Register / Login with JWT authentication
-- 🏪 Browse restaurants with search
-- 🍽️ View restaurant menu with categories (Veg/Non-veg filter)
-- 🛒 Add to cart, update quantities, clear cart
-- 📦 Place orders (COD)
-- 📋 Track order status with progress bar
+* Supports:
 
-### Admin Features
-- 🏪 Add / delete restaurants
-- 🍔 Add / delete menu items per restaurant
-- 📦 View all orders and update order status
-- 📊 Basic stats dashboard
+  * Cash on Delivery (COD)
+  * UPI (manual verification)
+* Includes:
+
+  * QR Code payment
+  * UTR tracking
+  * Fake payment detection
+  * Admin approval system
 
 ---
 
-## 🛠️ Tech Stack
+## 📦 Order Flow
 
-| Layer      | Technology                  |
-|------------|-----------------------------|
-| Frontend   | React 18, Tailwind CSS      |
-| Routing    | React Router v6             |
-| HTTP       | Axios                       |
-| Backend    | Node.js, Express            |
-| Database   | MongoDB, Mongoose           |
-| Auth       | JWT, bcryptjs               |
-| Toasts     | react-hot-toast             |
-| Fonts      | Poppins (Google Fonts)      |
+```
+Placed → Confirmed → Preparing → Out for Delivery → Delivered
+```
 
 ---
 
-## 🚀 Deploy to Production
+## 🚀 Deployment
 
-### Backend (Render / Railway)
-1. Push backend folder to GitHub
-2. Set environment variables on your platform
-3. Set start command: `node server.js`
+### Backend
 
-### Frontend (Vercel / Netlify)
-1. Update `src/utils/api.js` baseURL to your backend URL
-2. Push frontend to GitHub and deploy
+* Deploy on Render / Railway
+* Set environment variables
+* Start command: `node server.js`
+
+### Frontend
+
+* Deploy on Vercel / Netlify
+* Update API base URL
 
 ---
 
-## 📝 Notes
+## 📌 Future Improvements
 
-- Cart is cleared automatically after order placement
-- Adding items from a different restaurant clears the existing cart
-- JWT tokens expire in 30 days
-- All admin routes require `role: 'admin'` in the user document
+* 📍 Live delivery tracking (maps)
+* 🔔 Push notifications
+* 🧑‍🍳 Restaurant owner dashboard
+* 💳 Razorpay/Stripe integration
+* 📊 Advanced analytics
+
+---
+
+## 👨‍💻 Author
+
+**Abhishek Thakur**
+BTech CSE Student | Full Stack Developer
+
+---
+
+## ⭐ If you like this project
+
+Give it a star ⭐ and feel free to contribute!
+
+---
+
