@@ -6,7 +6,7 @@ import API from '../utils/api';
 import toast from 'react-hot-toast';
 
 // ✅ REPLACE with your real UPI ID
-const YOUR_UPI_ID = 'thakurabhishek@ptyes';
+const YOUR_UPI_ID = 'thakurabhishek01@ptyes';
 const YOUR_NAME = 'Eatzo';
 
 const Cart = () => {
