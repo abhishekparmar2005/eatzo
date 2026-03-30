@@ -6,6 +6,7 @@ const orderItemSchema = new mongoose.Schema({
   price: Number,
   image: String,
   quantity: Number,
+  variant: { type: String, default: '' }, // e.g. "Half" or "Full"
 });
 
 const orderSchema = new mongoose.Schema({
@@ -19,6 +20,11 @@ const orderSchema = new mongoose.Schema({
     type: String,
     enum: ['Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Cancelled'],
     default: 'Placed',
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['Pending', 'Payment Pending Verification', 'Paid'],
+    default: 'Pending',
   },
   deliveryAddress: { type: String, default: '' },
   paymentMethod: { type: String, default: 'COD' },

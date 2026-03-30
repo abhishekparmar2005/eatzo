@@ -18,8 +18,10 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => { fetchCart(); }, [fetchCart]);
 
-  const addToCart = async (menuItemId) => {
-    const res = await API.post('/cart/add', { menuItemId, quantity: 1 });
+  // variant: e.g. "Half" or "Full" — pass empty string if no variants
+  // variantPrice: price of selected variant — pass undefined to use base price
+  const addToCart = async (menuItemId, quantity = 1, variant = '', variantPrice) => {
+    const res = await API.post('/cart/add', { menuItemId, quantity, variant, variantPrice });
     setCart(res.data.data);
   };
 

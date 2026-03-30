@@ -12,33 +12,46 @@ const getCart = async (req, res) => {
 
 const addItem = async (req, res) => {
   try {
-    const { menuItemId, quantity = 1 } = req.body;
+    // variant: name of the variant e.g. "Half" or "Full"
+    // variantPrice: price of that variant (overrides base price)
+    const { menuItemId, quantity = 1, variant = '', variantPrice } = req.body;
+
     const menuItem = await MenuItem.findById(menuItemId);
     if (!menuItem) return res.status(404).json({ success: false, message: 'Item not found' });
+
     const restaurant = await Restaurant.findById(menuItem.restaurantId);
+
+    // Use variant price if provided, else base price
+    const price = variantPrice ? Number(variantPrice) : menuItem.price;
 
     let cart = await Cart.findOne({ userId: req.user._id });
     if (!cart) cart = new Cart({ userId: req.user._id, items: [] });
 
-    // Check if from different restaurant
+    // Clear cart if adding from a different restaurant
     if (cart.items.length > 0 && cart.items[0].restaurantId?.toString() !== menuItem.restaurantId.toString()) {
       cart.items = [];
     }
 
-    const existingIdx = cart.items.findIndex(i => i.menuItem.toString() === menuItemId);
+    // Match by both menuItem ID AND variant name
+    const existingIdx = cart.items.findIndex(i =>
+      i.menuItem.toString() === menuItemId && (i.variant || '') === variant
+    );
+
     if (existingIdx > -1) {
       cart.items[existingIdx].quantity += quantity;
     } else {
       cart.items.push({
         menuItem: menuItem._id,
         name: menuItem.name,
-        price: menuItem.price,
+        price,
         image: menuItem.image,
         quantity,
+        variant,
         restaurantId: menuItem.restaurantId,
         restaurantName: restaurant?.name || '',
       });
     }
+
     await cart.save();
     res.json({ success: true, data: cart });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }

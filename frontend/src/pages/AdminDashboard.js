@@ -1,8 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import API from '../utils/api';
 import toast from 'react-hot-toast';
 
 const tabs = ['Restaurants', 'Menu Items', 'Orders'];
+
+// ─────────────────────────────────────────────
+// BUG FIX EXPLANATION:
+// The previous InputField was defined INSIDE the component, so React
+// re-created it on every render, causing the input to lose focus after
+// each keystroke. Fix: move InputField OUTSIDE the component so it's
+// a stable reference and never re-mounted unnecessarily.
+// ─────────────────────────────────────────────
+const InputField = ({ label, ...props }) => (
+  <div>
+    <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+    <input className="input text-sm" {...props} />
+  </div>
+);
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('Restaurants');
@@ -10,23 +24,33 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState('');
   const [menuItems, setMenuItems] = useState([]);
-  const [loading, setLoading] = useState(false);
 
-  // Forms
-  const [rForm, setRForm] = useState({ name: '', location: '', description: '', cuisine: '', deliveryTime: '30-45 min', minOrder: 100, image: '' });
-  const [mForm, setMForm] = useState({ name: '', price: '', category: 'Main Course', description: '', restaurantId: '', image: '', isVeg: false });
+  // Restaurant form
+  const [rForm, setRForm] = useState({
+    name: '', location: '', description: '', cuisine: '',
+    deliveryTime: '30-45 min', minOrder: 100, image: '', fssaiLicense: ''
+  });
 
-  useEffect(() => { fetchRestaurants(); fetchOrders(); }, []);
+  // Menu item form
+  const [mForm, setMForm] = useState({
+    name: '', price: '', category: 'Main Course',
+    description: '', restaurantId: '', image: '', isVeg: false,
+    variants: [] // [{name:'Half', price:''}, {name:'Full', price:''}]
+  });
 
-  const fetchRestaurants = async () => {
+  const [hasVariants, setHasVariants] = useState(false);
+
+  const fetchRestaurants = useCallback(async () => {
     const res = await API.get('/restaurants');
     setRestaurants(res.data.data || []);
-  };
+  }, []);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     const res = await API.get('/orders/all');
     setOrders(res.data.data || []);
-  };
+  }, []);
+
+  useEffect(() => { fetchRestaurants(); fetchOrders(); }, [fetchRestaurants, fetchOrders]);
 
   const fetchMenu = async (rid) => {
     setSelectedRestaurant(rid);
@@ -36,11 +60,16 @@ const AdminDashboard = () => {
 
   const createRestaurant = async (e) => {
     e.preventDefault();
+    // Validate FSSAI: must be 14 digits if provided
+    if (rForm.fssaiLicense && !/^\d{14}$/.test(rForm.fssaiLicense)) {
+      toast.error('FSSAI License must be exactly 14 digits');
+      return;
+    }
     try {
       await API.post('/restaurants', rForm);
       toast.success('Restaurant added!');
       fetchRestaurants();
-      setRForm({ name: '', location: '', description: '', cuisine: '', deliveryTime: '30-45 min', minOrder: 100, image: '' });
+      setRForm({ name: '', location: '', description: '', cuisine: '', deliveryTime: '30-45 min', minOrder: 100, image: '', fssaiLicense: '' });
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
   };
 
@@ -52,11 +81,20 @@ const AdminDashboard = () => {
 
   const createMenuItem = async (e) => {
     e.preventDefault();
+    const payload = {
+      ...mForm,
+      price: Number(mForm.price),
+      restaurantId: mForm.restaurantId || selectedRestaurant,
+      variants: hasVariants
+        ? mForm.variants.filter(v => v.name && v.price).map(v => ({ name: v.name, price: Number(v.price) }))
+        : [],
+    };
     try {
-      await API.post('/menu', { ...mForm, price: Number(mForm.price), restaurantId: mForm.restaurantId || selectedRestaurant });
+      await API.post('/menu', payload);
       toast.success('Menu item added!');
       if (selectedRestaurant) fetchMenu(selectedRestaurant);
-      setMForm({ name: '', price: '', category: 'Main Course', description: '', restaurantId: '', image: '', isVeg: false });
+      setMForm({ name: '', price: '', category: 'Main Course', description: '', restaurantId: '', image: '', isVeg: false, variants: [] });
+      setHasVariants(false);
     } catch (err) { toast.error(err.response?.data?.message || 'Error'); }
   };
 
@@ -70,12 +108,21 @@ const AdminDashboard = () => {
     toast.success('Status updated'); fetchOrders();
   };
 
-  const InputField = ({ label, ...props }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-      <input className="input text-sm" {...props} />
-    </div>
-  );
+  const updatePaymentStatus = async (orderId, paymentStatus) => {
+    await API.put(`/orders/${orderId}/status`, { paymentStatus });
+    toast.success('Payment status updated'); fetchOrders();
+  };
+
+  // Variant helpers
+  const addVariantRow = () => setMForm(f => ({ ...f, variants: [...f.variants, { name: '', price: '' }] }));
+  const updateVariant = (idx, field, val) => {
+    setMForm(f => {
+      const v = [...f.variants];
+      v[idx] = { ...v[idx], [field]: val };
+      return { ...f, variants: v };
+    });
+  };
+  const removeVariant = (idx) => setMForm(f => ({ ...f, variants: f.variants.filter((_, i) => i !== idx) }));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -84,8 +131,8 @@ const AdminDashboard = () => {
         <p className="text-orange-100 text-sm mt-1">Manage restaurants, menus, and orders</p>
       </div>
 
-      {/* Stats */}
       <div className="max-w-6xl mx-auto px-4 py-6">
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
             { label: 'Restaurants', value: restaurants.length, icon: '🏪' },
@@ -109,19 +156,33 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* Restaurants Tab */}
+        {/* ── RESTAURANTS TAB ── */}
         {activeTab === 'Restaurants' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-5">
               <h2 className="font-bold text-gray-900 mb-4">Add Restaurant</h2>
               <form onSubmit={createRestaurant} className="space-y-3">
-                <InputField label="Name *" value={rForm.name} onChange={e => setRForm({...rForm, name: e.target.value})} required placeholder="Restaurant name"/>
-                <InputField label="Location *" value={rForm.location} onChange={e => setRForm({...rForm, location: e.target.value})} required placeholder="Area, City"/>
-                <InputField label="Cuisine" value={rForm.cuisine} onChange={e => setRForm({...rForm, cuisine: e.target.value})} placeholder="e.g. North Indian"/>
-                <InputField label="Image URL" value={rForm.image} onChange={e => setRForm({...rForm, image: e.target.value})} placeholder="https://..."/>
+                <InputField label="Name *" value={rForm.name} onChange={e => setRForm(f => ({...f, name: e.target.value}))} required placeholder="Restaurant name"/>
+                <InputField label="Location *" value={rForm.location} onChange={e => setRForm(f => ({...f, location: e.target.value}))} required placeholder="Area, City"/>
+                <InputField label="Cuisine" value={rForm.cuisine} onChange={e => setRForm(f => ({...f, cuisine: e.target.value}))} placeholder="e.g. North Indian"/>
+                <InputField label="Image URL" value={rForm.image} onChange={e => setRForm(f => ({...f, image: e.target.value}))} placeholder="https://..."/>
                 <div className="grid grid-cols-2 gap-3">
-                  <InputField label="Delivery Time" value={rForm.deliveryTime} onChange={e => setRForm({...rForm, deliveryTime: e.target.value})} placeholder="30-45 min"/>
-                  <InputField label="Min Order (₹)" type="number" value={rForm.minOrder} onChange={e => setRForm({...rForm, minOrder: e.target.value})}/>
+                  <InputField label="Delivery Time" value={rForm.deliveryTime} onChange={e => setRForm(f => ({...f, deliveryTime: e.target.value}))} placeholder="30-45 min"/>
+                  <InputField label="Min Order (₹)" type="number" value={rForm.minOrder} onChange={e => setRForm(f => ({...f, minOrder: e.target.value}))}/>
+                </div>
+                {/* FSSAI License */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">FSSAI License Number (optional)</label>
+                  <input
+                    className="input text-sm"
+                    placeholder="14-digit FSSAI number"
+                    maxLength={14}
+                    value={rForm.fssaiLicense}
+                    onChange={e => setRForm(f => ({...f, fssaiLicense: e.target.value.replace(/\D/g, '')}))}
+                  />
+                  {rForm.fssaiLicense && rForm.fssaiLicense.length !== 14 && (
+                    <p className="text-xs text-red-400 mt-1">Must be exactly 14 digits ({rForm.fssaiLicense.length}/14)</p>
+                  )}
                 </div>
                 <button type="submit" className="btn-primary w-full text-sm py-2.5">+ Add Restaurant</button>
               </form>
@@ -133,6 +194,7 @@ const AdminDashboard = () => {
                   <div>
                     <p className="font-semibold text-gray-900">{r.name}</p>
                     <p className="text-sm text-gray-500">{r.location} • {r.cuisine}</p>
+                    {r.fssaiLicense && <p className="text-xs text-green-600 mt-0.5">✅ FSSAI: {r.fssaiLicense}</p>}
                   </div>
                   <button onClick={() => deleteRestaurant(r._id)} className="text-red-400 hover:text-red-600 text-sm font-medium">Delete</button>
                 </div>
@@ -141,7 +203,7 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* Menu Tab */}
+        {/* ── MENU ITEMS TAB ── */}
         {activeTab === 'Menu Items' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-5">
@@ -149,54 +211,81 @@ const AdminDashboard = () => {
               <form onSubmit={createMenuItem} className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Restaurant *</label>
-                  <select className="input text-sm" value={mForm.restaurantId} onChange={e => { setMForm({...mForm, restaurantId: e.target.value}); fetchMenu(e.target.value); }} required>
+                  <select className="input text-sm" value={mForm.restaurantId || selectedRestaurant} onChange={e => setMForm(f => ({...f, restaurantId: e.target.value}))} required>
                     <option value="">Select restaurant</option>
                     {restaurants.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
                   </select>
                 </div>
-                <InputField label="Item Name *" value={mForm.name} onChange={e => setMForm({...mForm, name: e.target.value})} required placeholder="e.g. Butter Chicken"/>
+                <InputField label="Item Name *" value={mForm.name} onChange={e => setMForm(f => ({...f, name: e.target.value}))} required placeholder="e.g. Butter Chicken"/>
                 <div className="grid grid-cols-2 gap-3">
-                  <InputField label="Price (₹) *" type="number" value={mForm.price} onChange={e => setMForm({...mForm, price: e.target.value})} required/>
+                  <InputField label="Base Price (₹) *" type="number" value={mForm.price} onChange={e => setMForm(f => ({...f, price: e.target.value}))} required placeholder="0"/>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
-                    <select className="input text-sm" value={mForm.category} onChange={e => setMForm({...mForm, category: e.target.value})}>
-                      {['Starter', 'Main Course', 'Breads', 'Rice', 'Desserts', 'Beverages', 'Snacks'].map(c => <option key={c}>{c}</option>)}
+                    <select className="input text-sm" value={mForm.category} onChange={e => setMForm(f => ({...f, category: e.target.value}))}>
+                      {['Starter', 'Main Course', 'Breads', 'Rice', 'Desserts', 'Drinks', 'Snacks'].map(c => <option key={c}>{c}</option>)}
                     </select>
                   </div>
                 </div>
-                <InputField label="Image URL" value={mForm.image} onChange={e => setMForm({...mForm, image: e.target.value})} placeholder="https://..."/>
-                <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                  <input type="checkbox" checked={mForm.isVeg} onChange={e => setMForm({...mForm, isVeg: e.target.checked})} className="w-4 h-4 accent-green-500"/>
+                <InputField label="Image URL" value={mForm.image} onChange={e => setMForm(f => ({...f, image: e.target.value}))} placeholder="https://..."/>
+
+                {/* Variants (Half / Full) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-medium text-gray-600">Variants (Half / Full etc.)</label>
+                    <button type="button" onClick={() => { setHasVariants(v => !v); setMForm(f => ({...f, variants: []})); }}
+                      className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${hasVariants ? 'bg-orange-100 text-[#FF6B00]' : 'bg-gray-100 text-gray-500'}`}>
+                      {hasVariants ? 'Remove Variants' : '+ Add Variants'}
+                    </button>
+                  </div>
+                  {hasVariants && (
+                    <div className="space-y-2">
+                      {mForm.variants.map((v, idx) => (
+                        <div key={idx} className="flex gap-2 items-center">
+                          <input className="input text-sm flex-1" placeholder="Name (Half/Full)" value={v.name} onChange={e => updateVariant(idx, 'name', e.target.value)}/>
+                          <input className="input text-sm w-24" type="number" placeholder="₹ Price" value={v.price} onChange={e => updateVariant(idx, 'price', e.target.value)}/>
+                          <button type="button" onClick={() => removeVariant(idx)} className="text-red-400 text-lg">×</button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addVariantRow} className="text-xs text-[#FF6B00] font-medium hover:underline">+ Add another variant</button>
+                    </div>
+                  )}
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input type="checkbox" checked={mForm.isVeg} onChange={e => setMForm(f => ({...f, isVeg: e.target.checked}))} className="w-4 h-4 accent-green-500"/>
                   Vegetarian
                 </label>
                 <button type="submit" className="btn-primary w-full text-sm py-2.5">+ Add Item</button>
               </form>
             </div>
+
             <div>
               <div className="flex items-center gap-3 mb-3">
                 <h2 className="font-bold text-gray-900">Menu Items</h2>
-                <select className="input text-sm flex-1" value={selectedRestaurant} onChange={e => fetchMenu(e.target.value)}>
+                <select className="input text-sm flex-1" onChange={e => fetchMenu(e.target.value)} defaultValue="">
                   <option value="">Filter by restaurant</option>
                   {restaurants.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                {menuItems.map(item => (
-                  <div key={item._id} className="card p-3 flex items-center justify-between">
+                {menuItems.map(m => (
+                  <div key={m._id} className="card p-3 flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-gray-900 text-sm">{item.name}</p>
-                      <p className="text-xs text-gray-500">₹{item.price} • {item.category} • {item.isVeg ? '🟢 Veg' : '🔴 Non-veg'}</p>
+                      <p className="font-semibold text-gray-900 text-sm">{m.name}</p>
+                      <p className="text-xs text-gray-500">₹{m.price} • {m.category} • {m.isVeg ? '🟢 Veg' : '🔴 Non-veg'}</p>
+                      {m.variants?.length > 0 && (
+                        <p className="text-xs text-blue-500">{m.variants.map(v => `${v.name}: ₹${v.price}`).join(' | ')}</p>
+                      )}
                     </div>
-                    <button onClick={() => deleteMenuItem(item._id)} className="text-red-400 hover:text-red-600 text-sm">Delete</button>
+                    <button onClick={() => deleteMenuItem(m._id)} className="text-red-400 hover:text-red-600 text-sm">Delete</button>
                   </div>
                 ))}
-                {menuItems.length === 0 && <p className="text-gray-400 text-sm text-center py-8">Select a restaurant to view menu</p>}
               </div>
             </div>
           </div>
         )}
 
-        {/* Orders Tab */}
+        {/* ── ORDERS TAB ── */}
         {activeTab === 'Orders' && (
           <div>
             <h2 className="font-bold text-gray-900 mb-4">All Orders ({orders.length})</h2>
@@ -211,44 +300,50 @@ const AdminDashboard = () => {
                     </div>
                     <span className="font-bold text-[#FF6B00]">₹{order.totalPrice + 30}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mb-2">{order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}</p>
+
+                  <p className="text-xs text-gray-500 mb-2">
+                    {order.items.map(i => `${i.name}${i.variant ? ` (${i.variant})` : ''} ×${i.quantity}`).join(', ')}
+                  </p>
+
+                  {/* Customer contact info */}
                   <div className="bg-gray-50 rounded-lg px-3 py-2 mb-3 text-xs space-y-1">
                     {order.customerPhone && (
                       <div className="flex items-center gap-2">
                         <span>📞</span>
                         <a href={`tel:+91${order.customerPhone}`} className="text-blue-600 font-semibold hover:underline">+91 {order.customerPhone}</a>
                         <a href={`https://wa.me/91${order.customerPhone}`} target="_blank" rel="noreferrer"
-                          className="bg-green-500 text-white px-2 py-0.5 rounded-full text-xs hover:bg-green-600">WhatsApp</a>
+                          className="bg-green-500 text-white px-2 py-0.5 rounded-full hover:bg-green-600">WhatsApp</a>
                       </div>
                     )}
-                    {order.userId?.email && (
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <span>✉️</span><span>{order.userId.email}</span>
-                      </div>
-                    )}
-                    {order.deliveryAddress && (
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <span>📍</span><span>{order.deliveryAddress}</span>
-                      </div>
-                    )}
-                    {order.customerNote && (
-                      <div className="flex items-center gap-2 text-gray-500">
-                        <span>📝</span><span>{order.customerNote}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <span>💳</span><span>{order.paymentMethod}</span>
+                    {order.userId?.email && <div className="flex gap-2 text-gray-500"><span>✉️</span><span>{order.userId.email}</span></div>}
+                    {order.deliveryAddress && <div className="flex gap-2 text-gray-500"><span>📍</span><span>{order.deliveryAddress}</span></div>}
+                    {order.customerNote && <div className="flex gap-2 text-gray-500"><span>📝</span><span>{order.customerNote}</span></div>}
+                    <div className="flex gap-2 items-center">
+                      <span>💳</span>
+                      <span>{order.paymentMethod}</span>
+                      {order.paymentMethod === 'UPI' && (
+                        <span className={`px-2 py-0.5 rounded-full text-white text-xs ${
+                          order.paymentStatus === 'Paid' ? 'bg-green-500' :
+                          order.paymentStatus === 'Payment Pending Verification' ? 'bg-yellow-500' : 'bg-gray-400'
+                        }`}>{order.paymentStatus}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <select
-                      value={order.status}
-                      onChange={e => updateOrderStatus(order._id, e.target.value)}
-                      className="input text-sm flex-1 py-2"
-                    >
-                      {['Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered', 'Cancelled'].map(s => <option key={s}>{s}</option>)}
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Order status */}
+                    <select value={order.status} onChange={e => updateOrderStatus(order._id, e.target.value)} className="input text-sm flex-1 py-2 min-w-0">
+                      {['Placed','Confirmed','Preparing','Out for Delivery','Delivered','Cancelled'].map(s => <option key={s}>{s}</option>)}
                     </select>
-                    <span className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString('en-IN')}</span>
+
+                    {/* Payment status — show only for UPI orders */}
+                    {order.paymentMethod === 'UPI' && (
+                      <select value={order.paymentStatus} onChange={e => updatePaymentStatus(order._id, e.target.value)} className="input text-sm py-2">
+                        {['Pending','Payment Pending Verification','Paid'].map(s => <option key={s}>{s}</option>)}
+                      </select>
+                    )}
+
+                    <span className="text-xs text-gray-400 whitespace-nowrap">{new Date(order.createdAt).toLocaleDateString('en-IN')}</span>
                   </div>
                 </div>
               ))}

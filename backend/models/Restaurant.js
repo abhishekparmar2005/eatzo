@@ -10,6 +10,7 @@ const restaurantSchema = new mongoose.Schema({
   deliveryTime: { type: String, default: '30-45 min' },
   minOrder: { type: Number, default: 100 },
   isOpen: { type: Boolean, default: true },
+  fssaiLicense: { type: String, default: '' }, // 14-digit FSSAI license
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 

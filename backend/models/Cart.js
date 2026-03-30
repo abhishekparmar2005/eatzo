@@ -6,6 +6,7 @@ const cartItemSchema = new mongoose.Schema({
   price: Number,
   image: String,
   quantity: { type: Number, default: 1, min: 1 },
+  variant: { type: String, default: '' }, // e.g. "Half" or "Full"
   restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant' },
   restaurantName: String,
 });
