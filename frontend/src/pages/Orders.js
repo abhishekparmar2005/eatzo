@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import API from '../utils/api';
+import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
 
 const STATUS_STEPS = ['Placed', 'Confirmed', 'Preparing', 'Out for Delivery', 'Delivered'];
@@ -21,28 +22,60 @@ const PAYMENT_COLORS = {
   'Failed':                       'bg-red-100 text-red-700',
 };
 
+// Step icons for tracking bar
+const STEP_ICONS = ['📋', '✅', '🍳', '🛵', '🎉'];
+
+// NEW: estimated time per step
+const STEP_ETA = {
+  'Placed':           '~35 min',
+  'Confirmed':        '~30 min',
+  'Preparing':        '~20 min',
+  'Out for Delivery': '~10 min',
+  'Delivered':        'Delivered!',
+};
+
 const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // NEW: track previous statuses to detect changes for toast
+  const prevStatusMap = useRef({});
+
   const fetchOrders = useCallback(async () => {
     try {
       const res = await API.get('/orders/my');
-      setOrders(res.data.data || []);
-    } catch {}
-    finally { setLoading(false); }
+      const newOrders = res.data.data || [];
+
+      // NEW: compare statuses → show toast if changed
+      newOrders.forEach(order => {
+        const prev = prevStatusMap.current[order._id];
+        if (prev && prev !== order.status) {
+          // Get latest notification if available, else generate message
+          const latestNotif = order.notifications?.[order.notifications.length - 1];
+          const msg = latestNotif?.message || `Order status updated to: ${order.status}`;
+          toast(msg, { icon: '🔔', duration: 4000 });
+        }
+        prevStatusMap.current[order._id] = order.status;
+      });
+
+      setOrders(newOrders);
+    } catch {
+      // silent — don't show error on background polls
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Poll every 15 seconds for live status updates (simple alternative to WebSocket)
+  // UPDATED: poll every 12 seconds (was 15s, slightly tighter)
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 15000);
+    const interval = setInterval(fetchOrders, 12000);
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin w-10 h-10 border-4 border-[#FF6B00] border-t-transparent rounded-full"></div>
+      <div className="animate-spin w-10 h-10 border-4 border-[#FF6B00] border-t-transparent rounded-full" />
     </div>
   );
 
@@ -61,17 +94,26 @@ const Orders = () => {
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
         {orders.map(order => {
-          const stepIdx = STATUS_STEPS.indexOf(order.status);
+          const stepIdx    = STATUS_STEPS.indexOf(order.status);
+          // NEW: latest notification to show on card
+          const latestNotif = order.notifications?.length > 0
+            ? order.notifications[order.notifications.length - 1]
+            : null;
+          // UPDATED: use stored deliveryFee, fallback to 0
+          const deliveryFee = order.deliveryFee ?? 0;
+          const grandTotal  = order.totalPrice + deliveryFee;
+
           return (
             <div key={order._id} className="card p-5">
-              {/* Header */}
+
+              {/* ── Header ── */}
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-bold text-gray-900">{order.restaurantName || 'Restaurant'}</h3>
                   <p className="text-xs text-gray-400 mt-0.5">
                     {new Date(order.createdAt).toLocaleDateString('en-IN', {
                       day: 'numeric', month: 'short', year: 'numeric',
-                      hour: '2-digit', minute: '2-digit'
+                      hour: '2-digit', minute: '2-digit',
                     })}
                   </p>
                 </div>
@@ -80,7 +122,7 @@ const Orders = () => {
                 </span>
               </div>
 
-              {/* Items */}
+              {/* ── Items ── */}
               <p className="text-sm text-gray-600 mb-3">
                 {order.items.map((item, i) => (
                   <span key={i}>
@@ -90,37 +132,72 @@ const Orders = () => {
                 ))}
               </p>
 
-              {/* Progress bar — hidden if Cancelled */}
+              {/* ── NEW: Latest Notification Banner ── */}
+              {latestNotif && (
+                <div className="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2 mb-3 flex items-center gap-2">
+                  <span className="text-base">🔔</span>
+                  <p className="text-xs text-orange-800 font-medium">{latestNotif.message}</p>
+                </div>
+              )}
+
+              {/* ── UPDATED: Order Tracking with icons + ETA ── */}
               {order.status !== 'Cancelled' && (
                 <div className="mb-4">
-                  <div className="relative flex items-center mb-2">
-                    {/* connecting line */}
-                    <div className="absolute left-0 right-0 h-1 bg-gray-200 top-1.5 mx-3"></div>
+                  {/* NEW: Estimated delivery time */}
+                  {order.status !== 'Delivered' && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <span className="text-sm">⏱️</span>
+                      <span className="text-xs text-gray-500">
+                        Estimated: <span className="font-semibold text-gray-800">
+                          {order.estimatedDelivery || STEP_ETA[order.status] || '20–40 min'}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Progress bar */}
+                  <div className="relative flex items-start mb-1">
+                    {/* Grey track */}
+                    <div className="absolute left-0 right-0 h-1 bg-gray-200 top-4 mx-5 z-0" />
+                    {/* Orange fill */}
                     <div
-                      className="absolute left-0 h-1 bg-[#FF6B00] top-1.5 mx-3 transition-all duration-500"
+                      className="absolute left-0 h-1 bg-[#FF6B00] top-4 mx-5 transition-all duration-700 z-0"
                       style={{ width: stepIdx >= 0 ? `${(stepIdx / (STATUS_STEPS.length - 1)) * 100}%` : '0%' }}
-                    ></div>
+                    />
                     {STATUS_STEPS.map((step, i) => (
                       <div key={step} className="flex-1 flex flex-col items-center relative z-10">
-                        <div className={`w-4 h-4 rounded-full border-2 transition-colors ${
-                          i <= stepIdx
-                            ? 'bg-[#FF6B00] border-[#FF6B00]'
-                            : 'bg-white border-gray-300'
-                        }`}></div>
-                        <span className={`text-xs mt-1 text-center leading-tight hidden sm:block ${
-                          i <= stepIdx ? 'text-[#FF6B00] font-medium' : 'text-gray-400'
-                        }`}>{step.split(' ')[0]}</span>
+                        {/* Circle with emoji */}
+                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm transition-all
+                          ${i <= stepIdx
+                            ? 'bg-[#FF6B00] border-[#FF6B00] text-white shadow-md'
+                            : 'bg-white border-gray-200 text-gray-300'}`}>
+                          {STEP_ICONS[i]}
+                        </div>
+                        {/* Label */}
+                        <span className={`text-xs mt-1.5 text-center leading-tight hidden sm:block
+                          ${i <= stepIdx ? 'text-[#FF6B00] font-semibold' : 'text-gray-300'}`}>
+                          {step.split(' ')[0]}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Payment info */}
+              {/* ── UPDATED: Bill with deliveryFee from order ── */}
               <div className="flex items-center justify-between pt-3 border-t gap-2 flex-wrap">
-                <span className="text-sm text-gray-500">
-                  Total: <span className="font-bold text-gray-900">₹{order.totalPrice + (order.deliveryFee || 30)}</span>
-                </span>
+                <div className="text-sm text-gray-500 space-y-0.5">
+                  <div>
+                    Items: <span className="font-medium text-gray-700">₹{order.totalPrice}</span>
+                    {' + '}
+                    Delivery:{' '}
+                    <span className={deliveryFee === 0 ? 'text-green-600 font-semibold' : 'font-medium text-gray-700'}>
+                      {deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}
+                    </span>
+                  </div>
+                  <div className="font-bold text-gray-900">Total: ₹{grandTotal}</div>
+                </div>
+
                 <div className="flex gap-2 items-center flex-wrap">
                   <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-lg">{order.paymentMethod}</span>
                   {order.paymentMethod === 'UPI' && (
@@ -129,7 +206,7 @@ const Orders = () => {
                     </span>
                   )}
                   {order.utrNumber && (
-                    <span className="text-xs text-gray-400">UTR: {order.utrNumber}</span>
+                    <span className="text-xs text-gray-400 font-mono">UTR: {order.utrNumber}</span>
                   )}
                 </div>
               </div>

@@ -9,13 +9,21 @@ const orderItemSchema = new mongoose.Schema({
   variant: { type: String, default: '' },
 });
 
+// NEW: each notification is a short message + timestamp
+const notificationSchema = new mongoose.Schema({
+  message:   { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+});
+
 const orderSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  userId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   restaurantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Restaurant' },
   restaurantName: String,
   items: [orderItemSchema],
-  totalPrice: { type: Number, required: true },
-  deliveryFee: { type: Number, default: 30 },
+  totalPrice:  { type: Number, required: true },
+
+  // UPDATED: deliveryFee is now calculated dynamically (free if total ≥ 150)
+  deliveryFee: { type: Number, default: 0 },
 
   status: {
     type: String,
@@ -30,18 +38,22 @@ const orderSchema = new mongoose.Schema({
     default: 'Pending',
   },
 
-  // UTR = UPI Transaction Reference number
-  utrNumber: { type: String, default: '' },
-
-  // Fraud detection
-  isSuspicious: { type: Boolean, default: false },
-  suspiciousReason: { type: String, default: '' },
-  upiPaidClickedAt: { type: Date }, // when user clicked "Open UPI App"
-  iHavePaidClickedAt: { type: Date }, // when user clicked "I've Paid"
+  utrNumber:       { type: String, default: '' },
+  isSuspicious:    { type: Boolean, default: false },
+  suspiciousReason:{ type: String,  default: '' },
+  upiPaidClickedAt:  { type: Date },
+  iHavePaidClickedAt:{ type: Date },
 
   deliveryAddress: { type: String, default: '' },
-  customerPhone: { type: String, default: '' },
-  customerNote: { type: String, default: '' },
+  customerPhone:   { type: String, default: '' },
+  customerNote:    { type: String, default: '' },
+
+  // NEW: notification history (admin → user status updates)
+  notifications: { type: [notificationSchema], default: [] },
+
+  // NEW: estimated delivery time shown on order tracking
+  estimatedDelivery: { type: String, default: '20–40 min' },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);
